@@ -77,6 +77,14 @@ func (g *game) init() error {
 
 	g.rng = rand.New(rand.NewSource(time.Now().UnixNano()))
 
+	iconSurf, err := img.Load("images/Go-logo.png")
+	if err != nil {
+		return fmt.Errorf("Error loading Surface: %v", err)
+	}
+	defer iconSurf.Free()
+
+	g.window.SetIcon(iconSurf)
+
 	return err
 }
 

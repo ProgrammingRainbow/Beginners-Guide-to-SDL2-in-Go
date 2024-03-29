@@ -13,7 +13,7 @@ import (
 const (
 	windowWidth  = 800
 	windowHeight = 600
-	windowTitle  = "Changing Colors"
+	windowTitle  = "Changing Colors and Icon"
 )
 
 type game struct {
@@ -64,6 +64,14 @@ func (g *game) init() error {
 
 	g.rng = rand.New(rand.NewSource(time.Now().UnixNano()))
 
+	iconSurf, err := img.Load("images/Go-logo.png")
+	if err != nil {
+		return fmt.Errorf("Error loading Surface: %v", err)
+	}
+	defer iconSurf.Free()
+
+	g.window.SetIcon(iconSurf)
+
 	return err
 }
 
@@ -101,10 +109,10 @@ func (g *game) run() {
 				return
 			case *sdl.KeyboardEvent:
 				if e.Type == sdl.KEYDOWN {
-					switch e.Keysym.Sym {
-					case sdl.K_ESCAPE:
+					switch e.Keysym.Scancode {
+					case sdl.SCANCODE_ESCAPE:
 						return
-					case sdl.K_SPACE:
+					case sdl.SCANCODE_SPACE:
 						g.randColor()
 					}
 				}
