@@ -15,16 +15,16 @@ import (
 const (
 	windowWidth  = 800
 	windowHeight = 600
-	windowTitle  = "Sound Effects"
+	windowTitle  = "Sound Effects and Music"
 )
 
 type game struct {
 	window          *sdl.Window
 	renderer        *sdl.Renderer
 	backgroundImage *sdl.Texture
+	textImage       *sdl.Texture
 	fontSize        int
 	fontColor       sdl.Color
-	textImage       *sdl.Texture
 	textRect        sdl.Rect
 	textVel         int32
 	textXVel        int32
@@ -33,8 +33,9 @@ type game struct {
 	spriteRect      sdl.Rect
 	spriteVel       int32
 	keystate        []uint8
-	sdlSound        *mix.Chunk
 	goSound         *mix.Chunk
+	sdlSound        *mix.Chunk
+	music           *mix.Music
 	rng             *rand.Rand
 }
 
@@ -125,7 +126,7 @@ func (g *game) loadMedia() error {
 
 	font, err := ttf.OpenFont("fonts/freesansbold.ttf", g.fontSize)
 	if err != nil {
-		return fmt.Errorf("Error creating Font: %v", err)
+		return fmt.Errorf("Error opening Font: %v", err)
 	}
 	defer font.Close()
 
@@ -150,12 +151,20 @@ func (g *game) loadMedia() error {
 		return fmt.Errorf("Error querying Texture: %v", err)
 	}
 
+	if g.goSound, err = mix.LoadWAV("sounds/Go.ogg"); err != nil {
+		return fmt.Errorf("Error loading Chunk: %v", err)
+	}
+
 	if g.sdlSound, err = mix.LoadWAV("sounds/SDL.ogg"); err != nil {
 		return fmt.Errorf("Error loading Chunk: %v", err)
 	}
 
-	if g.goSound, err = mix.LoadWAV("sounds/Go.ogg"); err != nil {
-		return fmt.Errorf("Error loading Chunk: %v", err)
+	if g.music, err = mix.LoadMUS("music/freesoftwaresong-8bit.ogg"); err != nil {
+		return fmt.Errorf("Error loading Music: %v", err)
+	}
+
+	if err = g.music.Play(-1); err != nil {
+		return fmt.Errorf("Error playing Music: %v", err)
 	}
 
 	return err
@@ -170,6 +179,7 @@ func (g *game) randColor() {
 func (g *game) updateText() {
 	g.textRect.X += g.textXVel
 	g.textRect.Y += g.textYVel
+
 	if g.textRect.X < 0 {
 		g.textXVel = g.textVel
 		g.sdlSound.Play(-1, 0)
@@ -201,13 +211,24 @@ func (g *game) updateSprite() {
 	}
 }
 
+func (g *game) pauseMusic() {
+	if mix.PausedMusic() {
+		mix.ResumeMusic()
+	} else {
+		mix.PauseMusic()
+	}
+}
+
 func (g *game) close() {
 	if g != nil {
+		mix.HaltMusic()
 		mix.HaltChannel(-1)
-		g.goSound.Free()
-		g.goSound = nil
+		g.music.Free()
+		g.music = nil
 		g.sdlSound.Free()
 		g.sdlSound = nil
+		g.goSound.Free()
+		g.goSound = nil
 		g.spriteImage.Destroy()
 		g.spriteImage = nil
 		g.textImage.Destroy()
@@ -229,11 +250,13 @@ func (g *game) run() {
 				return
 			case *sdl.KeyboardEvent:
 				if e.Type == sdl.KEYDOWN {
-					switch e.Keysym.Sym {
-					case sdl.K_ESCAPE:
+					switch e.Keysym.Scancode {
+					case sdl.SCANCODE_ESCAPE:
 						return
-					case sdl.K_SPACE:
+					case sdl.SCANCODE_SPACE:
 						g.randColor()
+					case sdl.SCANCODE_M:
+						g.pauseMusic()
 					}
 				}
 			}
