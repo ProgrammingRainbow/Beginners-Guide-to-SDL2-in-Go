@@ -14,7 +14,7 @@ import (
 const (
 	windowWidth  = 800
 	windowHeight = 600
-	windowTitle  = "Moving Text and Icon"
+	windowTitle  = "Player Sprite"
 )
 
 type game struct {
@@ -28,6 +28,10 @@ type game struct {
 	textVel         int32
 	textXVel        int32
 	textYVel        int32
+	spriteImage     *sdl.Texture
+	spriteRect      sdl.Rect
+	spriteVel       int32
+	keystate        []uint8
 	rng             *rand.Rand
 }
 
@@ -65,6 +69,7 @@ func newGame() *game {
 	g.textVel = 3
 	g.textXVel = g.textVel
 	g.textYVel = g.textVel
+	g.spriteVel = 5
 
 	return g
 }
@@ -90,6 +95,8 @@ func (g *game) init() error {
 	defer iconSurf.Free()
 
 	g.window.SetIcon(iconSurf)
+
+	g.keystate = sdl.GetKeyboardState()
 
 	return err
 }
@@ -120,6 +127,14 @@ func (g *game) loadMedia() error {
 		return fmt.Errorf("Error creating Texture from Surface: %v", err)
 	}
 
+	if g.spriteImage, err = img.LoadTexture(g.renderer, "images/Go-logo.png"); err != nil {
+		return fmt.Errorf("Error loading Texture: %v", err)
+	}
+
+	if _, _, g.spriteRect.W, g.spriteRect.H, err = g.spriteImage.Query(); err != nil {
+		return fmt.Errorf("Error querying Texture: %v", err)
+	}
+
 	return err
 }
 
@@ -143,8 +158,25 @@ func (g *game) updateText() {
 	}
 }
 
+func (g *game) updateSprite() {
+	if g.keystate[sdl.SCANCODE_LEFT] == 1 || g.keystate[sdl.SCANCODE_A] == 1 {
+		g.spriteRect.X -= g.spriteVel
+	}
+	if g.keystate[sdl.SCANCODE_RIGHT] == 1 || g.keystate[sdl.SCANCODE_D] == 1 {
+		g.spriteRect.X += g.spriteVel
+	}
+	if g.keystate[sdl.SCANCODE_UP] == 1 || g.keystate[sdl.SCANCODE_W] == 1 {
+		g.spriteRect.Y -= g.spriteVel
+	}
+	if g.keystate[sdl.SCANCODE_DOWN] == 1 || g.keystate[sdl.SCANCODE_S] == 1 {
+		g.spriteRect.Y += g.spriteVel
+	}
+}
+
 func (g *game) close() {
 	if g != nil {
+		g.spriteImage.Destroy()
+		g.spriteImage = nil
 		g.textImage.Destroy()
 		g.textImage = nil
 		g.backgroundImage.Destroy()
@@ -175,11 +207,13 @@ func (g *game) run() {
 		}
 
 		g.updateText()
+		g.updateSprite()
 
 		g.renderer.Clear()
 
 		g.renderer.Copy(g.backgroundImage, nil, nil)
 		g.renderer.Copy(g.textImage, nil, &g.textRect)
+		g.renderer.Copy(g.spriteImage, nil, &g.spriteRect)
 
 		g.renderer.Present()
 

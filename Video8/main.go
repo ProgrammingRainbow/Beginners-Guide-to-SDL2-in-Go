@@ -15,7 +15,7 @@ import (
 const (
 	windowWidth  = 800
 	windowHeight = 600
-	windowTitle  = "Sound Effects"
+	windowTitle  = "Music"
 )
 
 type game struct {
@@ -35,6 +35,7 @@ type game struct {
 	keystate        []uint8
 	sdlSound        *mix.Chunk
 	goSound         *mix.Chunk
+	music           *mix.Music
 	rng             *rand.Rand
 }
 
@@ -158,6 +159,14 @@ func (g *game) loadMedia() error {
 		return fmt.Errorf("Error loading Chunk: %v", err)
 	}
 
+	if g.music, err = mix.LoadMUS("music/freesoftwaresong-8bit.ogg"); err != nil {
+		return fmt.Errorf("Error loading Music: %v", err)
+	}
+
+	if err = g.music.Play(-1); err != nil {
+		return fmt.Errorf("Error playing Music: %v", err)
+	}
+
 	return err
 }
 
@@ -201,9 +210,20 @@ func (g *game) updateSprite() {
 	}
 }
 
+func (g *game) pauseMusic() {
+	if mix.PausedMusic() {
+		mix.ResumeMusic()
+	} else {
+		mix.PauseMusic()
+	}
+}
+
 func (g *game) close() {
 	if g != nil {
+		mix.HaltMusic()
 		mix.HaltChannel(-1)
+		g.music.Free()
+		g.music = nil
 		g.goSound.Free()
 		g.goSound = nil
 		g.sdlSound.Free()
@@ -234,6 +254,8 @@ func (g *game) run() {
 						return
 					case sdl.K_SPACE:
 						g.randColor()
+					case sdl.K_m:
+						g.pauseMusic()
 					}
 				}
 			}

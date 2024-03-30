@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/veandco/go-sdl2/img"
+	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 )
@@ -14,7 +15,7 @@ import (
 const (
 	windowWidth  = 800
 	windowHeight = 600
-	windowTitle  = "Player Sprite"
+	windowTitle  = "Sound Effects"
 )
 
 type game struct {
@@ -32,6 +33,8 @@ type game struct {
 	spriteRect      sdl.Rect
 	spriteVel       int32
 	keystate        []uint8
+	sdlSound        *mix.Chunk
+	goSound         *mix.Chunk
 	rng             *rand.Rand
 }
 
@@ -39,6 +42,7 @@ func initializeSDL() error {
 	var err error
 	var sdlFlags uint32 = sdl.INIT_EVERYTHING
 	imgFlags := img.INIT_PNG
+	mixFlags := mix.INIT_OGG
 
 	if err = sdl.Init(sdlFlags); err != nil {
 		return fmt.Errorf("Error initializing SDL2: %v", err)
@@ -52,10 +56,21 @@ func initializeSDL() error {
 		return fmt.Errorf("Error initializing SDL_ttf: %v", err)
 	}
 
+	if err = mix.Init(mixFlags); err != nil {
+		return fmt.Errorf("Error initializing SDL_mixer: %v", err)
+	}
+
+	if err = mix.OpenAudio(mix.DEFAULT_FREQUENCY, mix.DEFAULT_FORMAT,
+		mix.DEFAULT_CHANNELS, mix.DEFAULT_CHUNKSIZE); err != nil {
+		return fmt.Errorf("Error opening Audio: %v", err)
+	}
+
 	return err
 }
 
 func closeSDL() {
+	mix.CloseAudio()
+	mix.Quit()
 	ttf.Quit()
 	img.Quit()
 	sdl.Quit()
@@ -135,12 +150,21 @@ func (g *game) loadMedia() error {
 		return fmt.Errorf("Error querying Texture: %v", err)
 	}
 
+	if g.sdlSound, err = mix.LoadWAV("sounds/SDL.ogg"); err != nil {
+		return fmt.Errorf("Error loading Chunk: %v", err)
+	}
+
+	if g.goSound, err = mix.LoadWAV("sounds/Go.ogg"); err != nil {
+		return fmt.Errorf("Error loading Chunk: %v", err)
+	}
+
 	return err
 }
 
 func (g *game) randColor() {
 	g.renderer.SetDrawColor(uint8(g.rng.Intn(256)),
 		uint8(g.rng.Intn(256)), uint8(g.rng.Intn(256)), 255)
+	g.goSound.Play(-1, 0)
 }
 
 func (g *game) updateText() {
@@ -148,13 +172,17 @@ func (g *game) updateText() {
 	g.textRect.Y += g.textYVel
 	if g.textRect.X < 0 {
 		g.textXVel = g.textVel
+		g.sdlSound.Play(-1, 0)
 	} else if (g.textRect.X + g.textRect.W) > windowWidth {
 		g.textXVel = -g.textVel
+		g.sdlSound.Play(-1, 0)
 	}
 	if g.textRect.Y < 0 {
 		g.textYVel = g.textVel
+		g.sdlSound.Play(-1, 0)
 	} else if (g.textRect.Y + g.textRect.H) > windowHeight {
 		g.textYVel = -g.textVel
+		g.sdlSound.Play(-1, 0)
 	}
 }
 
@@ -175,6 +203,11 @@ func (g *game) updateSprite() {
 
 func (g *game) close() {
 	if g != nil {
+		mix.HaltChannel(-1)
+		g.goSound.Free()
+		g.goSound = nil
+		g.sdlSound.Free()
+		g.sdlSound = nil
 		g.spriteImage.Destroy()
 		g.spriteImage = nil
 		g.textImage.Destroy()

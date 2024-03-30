@@ -14,7 +14,7 @@ import (
 const (
 	windowWidth  = 800
 	windowHeight = 600
-	windowTitle  = "Create Text"
+	windowTitle  = "Creating and Moving Text"
 )
 
 type game struct {
@@ -25,6 +25,9 @@ type game struct {
 	fontSize        int
 	fontColor       sdl.Color
 	textRect        sdl.Rect
+	textVel         int32
+	textXVel        int32
+	textYVel        int32
 	rng             *rand.Rand
 }
 
@@ -59,6 +62,9 @@ func newGame() *game {
 
 	g.fontSize = 80
 	g.fontColor = sdl.Color{R: 255, G: 255, B: 255, A: 255}
+	g.textVel = 3
+	g.textXVel = g.textVel
+	g.textYVel = g.textVel
 
 	return g
 }
@@ -97,7 +103,7 @@ func (g *game) loadMedia() error {
 
 	font, err := ttf.OpenFont("fonts/freesansbold.ttf", g.fontSize)
 	if err != nil {
-		return fmt.Errorf("Error creating Font: %v", err)
+		return fmt.Errorf("Error opening Font: %v", err)
 	}
 	defer font.Close()
 
@@ -122,6 +128,22 @@ func (g *game) randColor() {
 		uint8(g.rng.Intn(256)), uint8(g.rng.Intn(256)), 255)
 }
 
+func (g *game) updateText() {
+	g.textRect.X += g.textXVel
+	g.textRect.Y += g.textYVel
+
+	if g.textRect.X < 0 {
+		g.textXVel = g.textVel
+	} else if (g.textRect.X + g.textRect.W) > windowWidth {
+		g.textXVel = -g.textVel
+	}
+	if g.textRect.Y < 0 {
+		g.textYVel = g.textVel
+	} else if (g.textRect.Y + g.textRect.H) > windowHeight {
+		g.textYVel = -g.textVel
+	}
+}
+
 func (g *game) close() {
 	if g != nil {
 		g.textImage.Destroy()
@@ -143,15 +165,17 @@ func (g *game) run() {
 				return
 			case *sdl.KeyboardEvent:
 				if e.Type == sdl.KEYDOWN {
-					switch e.Keysym.Sym {
-					case sdl.K_ESCAPE:
+					switch e.Keysym.Scancode {
+					case sdl.SCANCODE_ESCAPE:
 						return
-					case sdl.K_SPACE:
+					case sdl.SCANCODE_SPACE:
 						g.randColor()
 					}
 				}
 			}
 		}
+
+		g.updateText()
 
 		g.renderer.Clear()
 
